@@ -119,4 +119,95 @@ async function addBook(req, res) {
   }
 }
 
-module.exports = { getBooks, getBookByAuthorId, getBookByGenreId, addBook };
+// Get All authors
+
+async function getAllAuthors(req, res) {
+  try {
+    const authors = await Author.findAll();
+
+    if (authors.length === 0) {
+      return res.status(404).json({ message: "No authors found" });
+    }
+
+    res.json(authors);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+// add new Author
+async function addAuthor(req, res) {
+  try {
+    const { name, birthdate, email } = req.body;
+    // Validate required fields
+    if (!name || !birthdate || !email) {
+      return res.status(400).json({ message: "Missing the requires deatils" });
+    }
+
+    const author = await Author.findOne({ where: { email } });
+    if (author) {
+      return res.status(400).json({ message: "Author already exists" });
+    }
+    // Create a new author
+    const newAuthor = await Author.create({ name, birthdate, email });
+
+    res.json({ message: "Author created Successfully", newAuthor: newAuthor });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function getAuthorByGenreId(req, res) {
+  try {
+    const { genreId } = req.params;
+
+    // Validate genre ID
+    if (!genreId) {
+      return res.status(400).json({ message: "Provide a valid genre ID" });
+    }
+
+    // Check if genre exists
+    const genre = await Genre.findByPk(genreId);
+    if (!genre) {
+      return res.status(404).json({ message: "Genre not found" });
+    }
+
+    // Find all books in the specified genre with their authors
+    const books = await Book.findAll({
+      include: [
+        {
+          model: Genre,
+          where: { id: genreId },
+          through: { attributes: [] },
+        },
+        {
+          model: Author,
+          attributes: ["name"],
+        },
+      ],
+      attributes: ["title"],
+    });
+
+    if (books.length === 0) {
+      return res.status(404).json({ message: "No books found for this genre" });
+    }
+
+    const authors = books.map((book) => ({
+      authorName: book.Author.name,
+      bookTitle: book.title,
+    }));
+
+    res.json({ Authors: authors });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+module.exports = {
+  getBooks,
+  getBookByAuthorId,
+  getBookByGenreId,
+  addBook,
+  getAllAuthors,
+  addAuthor,
+  getAuthorByGenreId,
+};
